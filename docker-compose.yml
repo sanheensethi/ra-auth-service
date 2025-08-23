@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  auth-service:
+    image: auth-service-image
+    container_name: auth-service
+    restart: unless-stopped
+    ports:
+      - "${EXTERNAL_PORT}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://auth-service:3000/auth/api/v1/health').then((r) => { if (r.status !==200) throw new Error(r.status) })"
+        ]
+      timeout: 10s
+      interval: 5s
+      retries: 3
+    environment:
+      SERVER_PORT: ${SERVER_PORT}
+      DATABASE_HOST: ${DATABASE_HOST}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      LOGS_MAX_SIZE_PER_FILE: ${LOGS_MAX_SIZE_PER_FILE}
+      LOGS_MAX_FILES: ${LOGS_MAX_FILES}
+      LOGS_TIME_FORMAT: ${LOGS_TIME_FORMAT}
+      LOGS_FILENAME_DATE_PATTERN: ${LOGS_FILENAME_DATE_PATTERN}
+      EMAIL_VERIFICATION_URL: ${EMAIL_VERIFICATION_URL}
+      PASSWORD_RESET_URL: ${PASSWORD_RESET_URL}
+    volumes:
+      - /var/riskmanager/logs/auth-service:/usr/src/app/logs

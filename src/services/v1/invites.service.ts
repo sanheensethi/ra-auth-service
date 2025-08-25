@@ -16,6 +16,7 @@ class InviteService {
             if (invites.success && invites.data && invites.data.length > 0) {
                 return { success: true, data: invites.data[0] }; // Return the first matching invite
             } else {
+                logger.warn(`[InviteService.getInvitesByCode] No invite found with code: ${code}`);
                 return { success: false, details: "Invite not found" };
             }
         } catch (error: any) {
@@ -30,6 +31,7 @@ class InviteService {
             if (updateResult.success) {
                 return { success: true, data: updateResult.data[0] };
             } else {
+                logger.error(`[InviteService.updateInviteByCode] Failed to update invite with code: ${code} | Update Result: ${JSON.stringify(updateResult)}`);
                 return { success: false, details: "Failed to update invite" };
             }
         } catch (error: any) {

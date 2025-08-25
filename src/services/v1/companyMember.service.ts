@@ -15,6 +15,7 @@ class CompanyMemberService {
             let dbCompanyMember = dbCompanyMemberFactory(companyMemeberData);
             const res = await this.companyMemberRepository.create(dbCompanyMember);
             if (!res || res.success === false) {
+                logger.error(`[CompanyMemberService.createCompanyMember] Company member creation failed for data: ${JSON.stringify(companyMemeberData)} | Response: ${JSON.stringify(res)}`);
                 return { success: false, message: "Company Member creation failed" };
             } else {
                 return { success: true, data: res.data[0] };

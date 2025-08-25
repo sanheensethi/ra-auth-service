@@ -18,6 +18,7 @@ class UserController {
     private initializeRoutes() {
         this.router.post('/login', this.login.bind(this));
         this.router.post('/register', this.createUser.bind(this)); // Register a new user
+        this.router.post('/register/:inviteCode', this.createUserWithInvite.bind(this)); // Register a new user with invite code
     }
 
     async createUser(req: Request, res: Response) {
@@ -53,10 +54,11 @@ class UserController {
     async createUserWithInvite(req: Request, res: Response) {
         try {
             let { name, email, password, base_role } = req.body; // base role is company always, role in company is stored in invites, which is ADMIN by default
-            const inviteCode = req.query.inviteCode as string;
+            const inviteCode = req.params.inviteCode as string;
 
             if (!name || !email || !password || !inviteCode) {
-                return res.status(400).json({ message: "Name, Email, Password, and Invite Code are required" });
+                res.status(400).json({ message: "Name, Email, Password, and Invite Code are required" });
+                return;
             }
 
             if (!base_role) {
@@ -64,37 +66,43 @@ class UserController {
             }
 
             if(!isValidBaseRole(base_role)) {
-                return res.status(400).json({ message: "Invalid base_role" });
+                res.status(400).json({ message: "Invalid base_role" });
+                return;
             }
 
             // first check if inviteType is COMPANY_OWNER from database, if yes, then expect companyName and companyAddress in body
 
             let inviteData = await this.inviteService.getInvitesByCode(inviteCode);
 
+            logger.info(`Invite Data: ${JSON.stringify(inviteData)}`);
+
             if (!inviteData || !inviteData.success) {
-                return res.status(400).json({ message: "Invalid invite code" });
+                res.status(400).json({ message: "Invalid invite code" });
+                return;
             }
 
-            if (inviteData.data.length === 0) {
-                return res.status(400).json({ message: "Invalid invite code" });
-            }
-
-            if (inviteData.data[0].email !== email) {
-                return res.status(400).json({ message: "Invite code does not match email" });
+            if (inviteData.data.email !== email) {
+                res.status(400).json({ message: "Invite code does not match email" });
+                return;
             }
 
             const inviteType = inviteData.data.invitation_type;
 
             if (inviteType && inviteType == "COMPANY_OWNER") {
-                let companyName, companyAddress;
+                let companyName;
                 companyName = req.body.companyName;
-                companyAddress = req.body.companyAddress;
-                if (!companyName || !companyAddress) {
-                    return res.status(400).json({ message: "Company Name and Company Address are required for COMPANY_OWNER invite" });
+                if (!companyName) {
+                    res.status(400).json({ message: "Company Name and Company Address are required for COMPANY_OWNER invite" });
+                    return;
                 }
 
                 // now, create user, create company, assign user to company with role ADMIN
-                this.userService.createUserAndCompanyWithInvite({name, email, password, base_role, inviteCode, companyName, companyAddress});
+                const result = await this.userService.createUserAndCompanyWithInvite({name, email, password, base_role, inviteCode, companyName});
+                if (result.success) {
+                    res.status(201).json({"message": "User and Company created successfully", data: result.data });
+                } else {
+                    res.status(400).json({ message: result.message });
+                }
 
             } else if (inviteType && inviteType == "COMPANY_MEMBER") {
                 // create user, assign user to company with role from invites table

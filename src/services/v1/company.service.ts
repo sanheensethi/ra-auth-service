@@ -15,6 +15,7 @@ class CompanyService {
             let dbCompany = dbCompanyFactory(companyData);
             const res = await this.companyRepository.create(dbCompany);
             if (!res || res.success === false) {
+                logger.error(`[CompanyService.createCompany] Company creation failed for data: ${JSON.stringify(companyData)} | Response: ${JSON.stringify(res)}`);
                 return { success: false, message: "Company creation failed" };
             } else {
                 return { success: true, data: res.data[0] };

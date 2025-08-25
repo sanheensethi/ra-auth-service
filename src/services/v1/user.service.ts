@@ -47,7 +47,7 @@ class UserService {
         // inviteType = COMPANY_OWNER
         try {
             let dbUser:any = dbUserFactory(userData);
-            const { inviteCode, companyName, companyAddress } = userData;
+            const { inviteCode, companyName } = userData;
             // first create user with is_active = true, then create company, then assign user to company with role ADMIN, then update the invites table to mark the invite as used
             
             // activate the user as it is created via invite code
@@ -55,6 +55,7 @@ class UserService {
 
             const res = await this.userRepository.create(dbUser);
             if (!res || res.success === false) {
+                logger.error(`[UserService.createUserAndCompanyWithInvite] User creation failed for data: ${JSON.stringify(userData)} | Response: ${JSON.stringify(res)}`);
                 return { success: false, message: "User creation failed" };
             }
 
@@ -64,12 +65,11 @@ class UserService {
             // create companys
             let companyResult = await this.companyService.createCompany({
                 name: companyName, 
-                address: companyAddress, 
                 owner_id: userId
             });
             
             if (!companyResult || companyResult.success === false) {
-                logger.error(`[UserService.createUserAndCompanyWithInvite] Company creation failed after user creation with id: ${userId}`);
+                logger.error(`[UserService.createUserAndCompanyWithInvite] Company creation failed after user creation with id: ${userId} | Company Result: ${JSON.stringify(companyResult)}`);
                 return { success: false, message: "User Created, Company creation failed" };
             }
 
@@ -77,7 +77,7 @@ class UserService {
             let updateInvitesResult = await this.inviteService.updateInviteByCode(inviteCode, { 
                     status: "ACCEPTED", 
                     accepted_at: new Date().toISOString(), 
-                    updatedAt: new Date().toISOString() 
+                    updated_at: new Date().toISOString() 
                 });
 
             if (!updateInvitesResult || updateInvitesResult.success === false) {

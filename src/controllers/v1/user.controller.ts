@@ -3,13 +3,16 @@ import logger from '../../logger/v1/logger';
 import UserService from '../../services/v1/user.service';
 import { isValidBaseRole } from '../../utils/helpers';
 import { apiUserFactory } from '../../factory/api/apiUserFactory';
+import InviteService from '../../services/v1/invites.service';
 
 class UserController {
     private userService: UserService;
+    private inviteService: InviteService;
     private router = express.Router();
     constructor() {
         this.initializeRoutes();
         this.userService = UserService.getInstance();
+        this.inviteService = InviteService.getInstance();
     }
 
     private initializeRoutes() {
@@ -43,6 +46,62 @@ class UserController {
             }
         } catch (error: any) {
             logger.error(`[UserController.createUser] creating user: ${error.message} | Stack Trace: ${error.stack}`);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    }
+
+    async createUserWithInvite(req: Request, res: Response) {
+        try {
+            let { name, email, password, base_role } = req.body; // base role is company always, role in company is stored in invites, which is ADMIN by default
+            const inviteCode = req.query.inviteCode as string;
+
+            if (!name || !email || !password || !inviteCode) {
+                return res.status(400).json({ message: "Name, Email, Password, and Invite Code are required" });
+            }
+
+            if (!base_role) {
+                base_role = "COMPANY"; // Default to COMPANY if not provided
+            }
+
+            if(!isValidBaseRole(base_role)) {
+                return res.status(400).json({ message: "Invalid base_role" });
+            }
+
+            // first check if inviteType is COMPANY_OWNER from database, if yes, then expect companyName and companyAddress in body
+
+            let inviteData = await this.inviteService.getInvitesByCode(inviteCode);
+
+            if (!inviteData || !inviteData.success) {
+                return res.status(400).json({ message: "Invalid invite code" });
+            }
+
+            if (inviteData.data.length === 0) {
+                return res.status(400).json({ message: "Invalid invite code" });
+            }
+
+            if (inviteData.data[0].email !== email) {
+                return res.status(400).json({ message: "Invite code does not match email" });
+            }
+
+            const inviteType = inviteData.data.invitation_type;
+
+            if (inviteType && inviteType == "COMPANY_OWNER") {
+                let companyName, companyAddress;
+                companyName = req.body.companyName;
+                companyAddress = req.body.companyAddress;
+                if (!companyName || !companyAddress) {
+                    return res.status(400).json({ message: "Company Name and Company Address are required for COMPANY_OWNER invite" });
+                }
+
+                // now, create user, create company, assign user to company with role ADMIN
+                this.userService.createUserAndCompanyWithInvite({name, email, password, base_role, inviteCode, companyName, companyAddress});
+
+            } else if (inviteType && inviteType == "COMPANY_MEMBER") {
+                // create user, assign user to company with role from invites table
+            }
+
+        } catch (error: any) {
+            logger.error(`[UserController.createUserWithInvite] creating user with invite: ${error.message} | Stack Trace: ${error.stack}`);
             res.status(500).json({ message: "Internal Server Error" });
         }
     }

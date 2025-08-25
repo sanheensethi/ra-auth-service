@@ -13,6 +13,7 @@ export function dbUserFactory(data: any) {
         email: email,
         password_hash: encryptPassword(password),
         base_role: base_role,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
     }
 }

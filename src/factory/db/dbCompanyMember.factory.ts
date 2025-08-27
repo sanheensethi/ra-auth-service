@@ -1,5 +1,3 @@
-import { create } from "domain";
-
 export function dbCompanyMemberFactory(data: any) {
     return {
         company_id: data.company_id,

@@ -74,7 +74,7 @@ class UserController {
 
             let inviteData = await this.inviteService.getInvitesByCode(inviteCode);
 
-            logger.info(`Invite Data: ${JSON.stringify(inviteData)}`);
+            logger.info(`Invite Data: ${JSON.stringify(inviteData)}`); // TODO: Remove this
 
             if (!inviteData || !inviteData.success) {
                 res.status(400).json({ message: "Invalid invite code" });
@@ -105,7 +105,20 @@ class UserController {
                 }
 
             } else if (inviteType && inviteType == "COMPANY_MEMBER") {
+
+                const roleInCompany = inviteData.data.role_in_company; // WORKER / ADMIN / MANAGER / CONTRACTOR
+                const companyId = inviteData.data.company_id; // member of which company ?
+                const hiredById = inviteData.data.invited_by;
+
+                logger.info("Invite Data: " + JSON.stringify(inviteData), "Role In Company: " + roleInCompany, "Company Id: " + companyId, "Hired By: " + hiredById);
+
                 // create user, assign user to company with role from invites table
+                const result = await this.userService.createUserWithInvite({name, email, password, base_role, inviteCode, roleInCompany, companyId, hiredById});
+                if (result.success) {
+                    res.status(201).json({"message": "User created successfully", data: result.data });
+                } else {
+                    res.status(400).json({ message: result.message });
+                }
             }
 
         } catch (error: any) {

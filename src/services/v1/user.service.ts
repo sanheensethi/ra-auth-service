@@ -106,6 +106,54 @@ class UserService {
         }
     }
 
+    async createUserWithInvite(userData: any) {
+        try {
+            let dbUser:any = dbUserFactory(userData);
+            dbUser['is_active'] = true
+
+            let { inviteCode, roleInCompany, companyId, hiredById } = userData;
+
+            const res = await this.userRepository.create(dbUser);
+            if (!res || res.success === false) {
+                logger.error(`[UserService.createUserWithInvite] User creation failed for data: ${JSON.stringify(userData)} | Response: ${JSON.stringify(res)}`);
+                return { success: false, message: "User creation failed" };
+            }
+
+            const user = res.data[0];
+            const userId = user.id;
+            
+            // mark the invite as used
+            let updateInvitesResult = await this.inviteService.updateInviteByCode(inviteCode, { 
+                status: "ACCEPTED", 
+                accepted_at: new Date().toISOString(), 
+                updated_at: new Date().toISOString() 
+            });
+
+            if (!updateInvitesResult || updateInvitesResult.success === false) {
+                logger.error(`[UserService.createUserWithInvite] Updating invite status failed for code: ${inviteCode}`);
+                return { success: false, message: "User and Company Created, but updating invite status failed" };
+            }
+            
+            // adding company member logic
+            let companyMemberResult = await this.companyMemberService.createCompanyMember({
+                company_id: companyId,
+                user_id: userId,
+                role_in_company: roleInCompany,
+                hired_by: hiredById
+            })
+
+            if (!companyMemberResult || companyMemberResult.success === false) {
+                logger.error(`[UserService.createUserWithInvite] Adding company member failed for user id: ${userId} with role: ${roleInCompany} and company id: ${companyId}`);
+                return { success: false, message: "User created, but adding company member failed" };
+            }
+
+            return { success: true, data: { user: apiUserFactory(user), companyMember: companyMemberResult.data } };
+        } catch (error: any) {
+            logger.error(`[UserService.createUserWithInvite] Error creating user and company with invite: ${error.message} | Stack Trace: ${error.stack}`);
+            throw new Error(`[UserService.createUserWithInvite] Error creating user and company with invite: ${error.message}`);
+        }
+    }
+
     async authenticateUser(email: string, password: string): Promise<any> {
         try {
             const user = await this.userRepository.findByEmail(email);

@@ -4,6 +4,7 @@ import UserService from '../../services/v1/user.service';
 import { isValidBaseRole } from '../../utils/helpers';
 import { apiUserFactory } from '../../factory/api/apiUserFactory';
 import InviteService from '../../services/v1/invites.service';
+import verifyToken from '../../middleware/v1/verifyToken';
 
 class UserController {
     private userService: UserService;
@@ -16,6 +17,7 @@ class UserController {
     }
 
     private initializeRoutes() {
+        this.router.get('/me', verifyToken, this.me.bind(this));
         this.router.post('/login', this.login.bind(this));
         this.router.post('/register', this.createUser.bind(this)); // Register a new user
         this.router.post('/register/:inviteCode', this.createUserWithInvite.bind(this)); // Register a new user with invite code
@@ -142,6 +144,21 @@ class UserController {
             }
         } catch (error: any) {
             logger.error(`[UserController.login] Error during login: ${error.message} | Stack Trace: ${error.stack}`);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    }
+
+    async me(req: Request, res: Response) {
+        try {
+            const userId = req.user?.id;
+            const user = await this.userService.getUserById(userId);
+            if (user.success) {
+                res.status(200).json({ message: "User details", data: apiUserFactory(user.data) });
+            } else {
+                res.status(404).json({ message: "User not found" });
+            }
+        } catch (error: any) {
+            logger.error(`[UserController.me] Error getting user details: ${error.message} | Stack Trace: ${error.stack}`);
             res.status(500).json({ message: "Internal Server Error" });
         }
     }

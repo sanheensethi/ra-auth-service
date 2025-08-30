@@ -28,6 +28,19 @@ class UserService {
         return UserService.instance;
     }
 
+    async getUserById(userId: any): Promise<any> {
+        try {
+            const user = await this.userRepository.findById(userId);
+            if (!user || user.success === false) {
+                return { success: false, message: "User not found" };
+            }
+            return { success: true, data: user.data[0] };
+        } catch (error: any) {
+            logger.error(`[UserService.getUserById] Error getting user by id: ${error.message} | Stack Trace: ${error.stack}`);
+            throw new Error(`[UserService.getUserById] Error getting user by id: ${error.message}`);
+        }
+    }
+
     async createUser(userData: any): Promise<any> {
         try {
             const dbUser = dbUserFactory(userData); // Format the data for database insertion

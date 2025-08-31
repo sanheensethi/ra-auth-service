@@ -134,6 +134,19 @@ class UserService {
 
             const user = res.data[0];
             const userId = user.id;
+
+            if (roleInCompany != "ADMIN" && roleInCompany != "MANAGER") {
+                // create default company for this user
+                let companyResult = await this.companyService.createCompany({
+                    name: "Default Company", 
+                    owner_id: userId
+                });
+
+                if (!companyResult || companyResult.success === false) {
+                    logger.error(`[UserService.createUserWithInvite] Company creation failed after user creation with id: ${userId} | Company Result: ${JSON.stringify(companyResult)}`);
+                    return { success: false, message: "User Created, Company creation failed" };
+                }
+            }
             
             // mark the invite as used
             let updateInvitesResult = await this.inviteService.updateInviteByCode(inviteCode, { 
